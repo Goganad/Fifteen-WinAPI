@@ -113,16 +113,37 @@ Scale GetWindowSteps(HWND hWnd){
     return result;
 }
 
+int getInversionsCount(){
+    int count = 0;
+    for (int i = 0; i < n * n - 1; i++){
+        for (int j = i + 1; j < n * n; j++){
+            if (cells[j/n][j%n].id && cells[i/n][i%n].id && cells[i/n][i%n].id > cells[j/n][j%n].id)
+                count++;
+        }
+    }
+    return count;
+}
+
+int findEmptyPosition(){
+   for (int i = n - 1; i >= 0; i--)
+        for (int j = n - 1; j >= 0; j--)
+            if (cells[i][j].id == 0)
+                return n - i;
+    return 0;
+}
+
 boolean CheckSolution(){
-    int sumOfLesserElements = 0;
-    for (int i = 0; i < n * n; i++)
-        for (int j = i; j < n * n; j++)
-            if (cells[i / n][i % n].id > cells[j / n][j % n].id)
-                sumOfLesserElements++;
-    if (sumOfLesserElements % 2)
-        return false;
-    else
-        return true;
+    int invCount = getInversionsCount();
+
+    if (n & 1)
+        return !(invCount & 1);
+    else {
+        int pos = findEmptyPosition();
+        if (pos & 1)
+            return !(invCount & 1);
+        else
+            return invCount & 1;
+    }
 }
 
 void RandomizeButtons(){
@@ -157,7 +178,7 @@ void Resize(HWND hWnd){
 }
 
 void CreateImageGameField(HWND hWnd, Scale steps, int emptyI, int emptyJ){
-    int id = 0;
+    int id = 1;
     cells.resize(n);
     for(int i = 0; i < n; i++){
         cells[i].resize(n);
@@ -165,12 +186,13 @@ void CreateImageGameField(HWND hWnd, Scale steps, int emptyI, int emptyJ){
     for(int i = 0; i < n; i++){
         for(int j = 0; j < n; j++){
             cells[i][j].btn = CreateWindowW(L"Button", L"", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, steps.x * j, steps.y * i, steps.x, steps.y, hWnd, nullptr, nullptr, nullptr);
-            cells[i][j].id = id++;
             if( (i != emptyI) || (j != emptyJ)){
+                cells[i][j].id = id++;
                 cells[i][j].isEmpty = false;
                 cells[i][j].bitmap = Image->Clone(steps.x * j, steps.y * i, steps.x, steps.y, PixelFormat24bppRGB);
             } else {
                 cells[i][j].isEmpty = true;
+                cells[i][j].id = 0;
             }
         }
     }
@@ -178,7 +200,7 @@ void CreateImageGameField(HWND hWnd, Scale steps, int emptyI, int emptyJ){
 }
 
 void CreateClassicGameField(HWND hWnd, Scale steps, int emptyI, int emptyJ){
-    int id = 0;
+    int id = 1;
     cells.resize(n);
     for(int i = 0; i < n; i++){
         cells[i].resize(n);
@@ -186,13 +208,14 @@ void CreateClassicGameField(HWND hWnd, Scale steps, int emptyI, int emptyJ){
     for(int i = 0; i < n; i++){
         for(int j = 0; j < n; j++){
             cells[i][j].btn = CreateWindowW(L"Button", nullptr, WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, steps.x * j, steps.y * i, steps.x, steps.y, hWnd, nullptr, nullptr, nullptr);
-            cells[i][j].id = id++;
             if( (i != emptyI) || (j != emptyJ)){
+                cells[i][j].id = id++;
                 cells[i][j].isEmpty = false;
                 wchar_t text[3] = L"";
-                swprintf_s(text, L"%d", cells[i][j].id + 1);
+                swprintf_s(text, L"%d", cells[i][j].id);
                 SetWindowText(cells[i][j].btn, text);
             } else {
+                cells[i][j].id = 0;
                 cells[i][j].isEmpty = true;
                 wchar_t text[3] = L"";
                 SetWindowText(cells[i][j].btn, text);
@@ -213,7 +236,7 @@ void ClearGameField(){
 boolean CheckWinSituation(){
     for(int i = 0; i < n; i++){
         for(int j = 0; j < n; j++){
-            if (cells[i][j].id != i * n + j){
+            if ((cells[i][j].id != i * n + j + 1) && (cells[i][j].id != 0)){
                 return false;
             }
         }
@@ -260,11 +283,9 @@ void CheckMove(HWND hWnd, HWND buttonClicked){
                     if (CheckWinSituation()){
                         if (MessageBoxW(hWnd, L"Congratulations! You won", L"Start new game?", MB_YESNO | MB_ICONQUESTION) == IDYES){
                             ClearGameField();
-                            n = 4;
                             Image == nullptr ? CreateClassicGameField(hWnd, steps, n - 1, n - 1) : CreateImageGameField(hWnd, steps, n - 1, n - 1);
                             DrawGameField(hWnd, steps);
                         }
-
                     }
                 }
             }
@@ -389,12 +410,12 @@ void RestoreClassicGame(HWND hWnd, Scale steps){
     int x0, y0;
     for(int i = 0; i<n; i++){
         for(int j = 0; j<n; j++){
-            y0 = cells[i][j].id / n;
-            x0 = cells[i][j].id % n;
+            y0 = (cells[i][j].id - 1) / n;
+            x0 = (cells[i][j].id - 1) % n;
             cells[i][j].btn = CreateWindowW(L"Button", L"", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, steps.x * x0, steps.y * y0, steps.x, steps.y, hWnd, nullptr, nullptr, nullptr);
             if( !cells[i][j].isEmpty ){
                 wchar_t text[3] = L"";
-                swprintf_s(text, L"%d", cells[i][j].id + 1);
+                swprintf_s(text, L"%d", cells[i][j].id);
                 SetWindowText(cells[i][j].btn, text);
             } else {
                 wchar_t text[3] = L"";
