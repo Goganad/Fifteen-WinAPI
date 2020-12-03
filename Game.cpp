@@ -9,7 +9,7 @@ Gdiplus::Bitmap *Image = nullptr;
 int idTimer = -1;
 boolean needToRedraw = true;
 
-const SIZE MIN_WINDOW_SIZE = SIZE{400, 350};
+const SIZE MIN_WINDOW_SIZE = SIZE{500, 500};
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
@@ -400,7 +400,7 @@ void RestoreImageGame(HWND hWnd, Scale steps){
             x0 = cells[i][j].id % n;
             cells[i][j].btn = CreateWindowW(L"Button", L"", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, steps.x * x0, steps.y * y0, steps.x, steps.y, hWnd, nullptr, nullptr, nullptr);
             if( !cells[i][j].isEmpty ) {
-                cells[i][j].bitmap = Image->Clone(steps.x * x0, steps.y * y0, steps.x, steps.y, PixelFormat24bppRGB);
+                cells[i][j].bitmap = Image->Clone(steps.x * x0, steps.y * y0, steps.x, steps.y, PixelFormat32bppRGB);
             }
         }
     }
@@ -481,6 +481,8 @@ void ResizeGameField(HWND hWnd, int size){
         ClearGameField();
         n = size;
         Scale steps = GetWindowSteps(hWnd);
+        Gdiplus::Bitmap *bitmap = Image->Clone();
+        ScaleImage(hWnd, bitmap);
         Image == nullptr ? CreateClassicGameField(hWnd, steps, n - 1, n - 1) : CreateImageGameField(hWnd, steps, n - 1, n - 1);
         DrawGameField(hWnd, steps);
     }
