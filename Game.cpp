@@ -277,7 +277,11 @@ void CheckMove(HWND hWnd, HWND buttonClicked){
                     if (CheckWinSituation()){
                         if (MessageBoxW(hWnd, L"Congratulations! You won the video game", L"Start new game?", MB_YESNO | MB_ICONQUESTION) == IDYES){
                             ClearGameField();
-                            Image == nullptr ? CreateClassicGameField(hWnd, steps, n - 1, n - 1) : CreateImageGameField(hWnd, steps, n - 1, n - 1);
+                            if (Image != nullptr) {
+                                ScaleImage(hWnd, Image);
+                                CreateImageGameField(hWnd, steps, n - 1, n - 1);
+                            } else
+                                CreateClassicGameField(hWnd, steps, n - 1, n - 1);
                             DrawGameField(hWnd, steps);
                         }
                     }
