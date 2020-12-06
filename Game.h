@@ -28,7 +28,7 @@ struct Cell{
     int id;
     HWND btn;
     boolean isEmpty;
-    Gdiplus::Image *bitmap;
+    Gdiplus::Bitmap *bitmap;
 };
 
 struct Scale{
@@ -55,6 +55,7 @@ void RestoreImageGame(HWND, Scale);
 void RestoreClassicGame(HWND, Scale);
 void ResizeGameField(HWND, int);
 void CutImage(LPARAM);
+void DrawBitmap(HDC, RECT, Gdiplus::Image);
 std::wstring OpenFile(HWND);
 void AddMenus(HWND);
 void Initialize(HWND);

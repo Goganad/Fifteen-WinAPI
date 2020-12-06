@@ -209,11 +209,13 @@ void CreateClassicGameField(HWND hWnd, Scale steps, int emptyI, int emptyJ){
         for(int j = 0; j < n; j++){
             cells[i][j].btn = CreateWindowW(L"Button", nullptr, WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, steps.x * j, steps.y * i, steps.x, steps.y, hWnd, nullptr, nullptr, nullptr);
             if( (i != emptyI) || (j != emptyJ)){
+                HFONT font = CreateFontW(35, 0, 0, 0, FW_SEMIBOLD, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, NULL);
                 cells[i][j].id = id++;
                 cells[i][j].isEmpty = false;
                 wchar_t text[3] = L"";
                 swprintf_s(text, L"%d", cells[i][j].id);
                 SetWindowText(cells[i][j].btn, text);
+                SendMessageW(cells[i][j].btn, WM_SETFONT, (WPARAM)font, (LPARAM)false);
             } else {
                 cells[i][j].id = 0;
                 cells[i][j].isEmpty = true;
@@ -269,19 +271,11 @@ void CheckMove(HWND hWnd, HWND buttonClicked){
                 if (delta <= 1.01){
                     swapped = true;
                     std::swap(cells[i][j], cells[emptyI][emptyJ]);
-                    MoveWindow(cells[i][j].btn, j * steps.x, i * steps.y, steps.x, steps.y, 1);
+                    MoveWindow(cells[i][j].btn, j * steps.x, i * steps.y, steps.x, steps.y, 0);
                     MoveWindow(cells[emptyI][emptyJ].btn, emptyJ * steps.x, emptyI * steps.y, steps.x, steps.y, 1);
 
-                    RECT rect;
-                    GetClientRect(cells[i][j].btn, &rect);
-                    const RECT *rectPointer = &rect;
-                    InvalidateRect(hWnd, rectPointer, false);
-                    GetClientRect(cells[emptyI][emptyJ].btn, &rect);
-                    rectPointer = &rect;
-                    InvalidateRect(hWnd, rectPointer, false);
-
                     if (CheckWinSituation()){
-                        if (MessageBoxW(hWnd, L"Congratulations! You won", L"Start new game?", MB_YESNO | MB_ICONQUESTION) == IDYES){
+                        if (MessageBoxW(hWnd, L"Congratulations! You won the video game", L"Start new game?", MB_YESNO | MB_ICONQUESTION) == IDYES){
                             ClearGameField();
                             Image == nullptr ? CreateClassicGameField(hWnd, steps, n - 1, n - 1) : CreateImageGameField(hWnd, steps, n - 1, n - 1);
                             DrawGameField(hWnd, steps);
@@ -370,7 +364,7 @@ void OnSave(HWND hWnd){
     std::fstream fout("save.dat", std::ios::out | std::ios::binary);
     if (!fout)
     {
-        MessageBoxW(hWnd, L"Can't open file for reading.", L"Error", MB_OK | MB_ICONERROR);
+        MessageBoxW(hWnd, L"Can't open file for writing.", L"Error", MB_OK | MB_ICONERROR);
         return;
     }
     if (MessageBoxW(hWnd, L"Last save will be deleted", L"Are you sure?", MB_YESNO | MB_ICONQUESTION) == IDNO)
@@ -396,8 +390,8 @@ void RestoreImageGame(HWND hWnd, Scale steps){
     int x0, y0;
     for(int i = 0; i<n; i++){
         for(int j = 0; j<n; j++){
-            y0 = cells[i][j].id / n;
-            x0 = cells[i][j].id % n;
+            y0 = (cells[i][j].id - 1) / n;
+            x0 = (cells[i][j].id - 1) % n;
             cells[i][j].btn = CreateWindowW(L"Button", L"", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, steps.x * x0, steps.y * y0, steps.x, steps.y, hWnd, nullptr, nullptr, nullptr);
             if( !cells[i][j].isEmpty ) {
                 cells[i][j].bitmap = Image->Clone(steps.x * x0, steps.y * y0, steps.x, steps.y, PixelFormat32bppRGB);
@@ -481,11 +475,30 @@ void ResizeGameField(HWND hWnd, int size){
         ClearGameField();
         n = size;
         Scale steps = GetWindowSteps(hWnd);
-        Gdiplus::Bitmap *bitmap = Image->Clone();
-        ScaleImage(hWnd, bitmap);
-        Image == nullptr ? CreateClassicGameField(hWnd, steps, n - 1, n - 1) : CreateImageGameField(hWnd, steps, n - 1, n - 1);
+        if(Image != nullptr){
+            Gdiplus::Bitmap *bitmap = Image->Clone();
+            ScaleImage(hWnd, bitmap);
+            CreateImageGameField(hWnd, steps, n - 1, n - 1);
+        } else {
+            CreateClassicGameField(hWnd, steps, n - 1, n - 1);
+        }
         DrawGameField(hWnd, steps);
     }
+}
+
+void DrawBitmap(HDC hDC, RECT rc, Gdiplus::Image *bitmap){
+    HDC memDC = CreateCompatibleDC(hDC);
+
+    HBITMAP bmp = CreateCompatibleBitmap(hDC, rc.right - rc.left,rc.bottom - rc.top);
+    auto oldBmp = (HBITMAP) SelectObject(memDC, bmp);
+
+    Gdiplus::Graphics(memDC).DrawImage(bitmap, Gdiplus::Rect(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top));
+
+    BitBlt(hDC, 0, 0, rc.right - rc.left, rc.bottom - rc.top, memDC, 0, 0, SRCCOPY);
+
+    SelectObject(memDC, oldBmp);
+    DeleteObject(bmp);
+    DeleteDC(memDC);
 }
 
 void CutImage(LPARAM lParam){
@@ -495,19 +508,7 @@ void CutImage(LPARAM lParam){
         for(int j = 0; j < n; j++){
             if ((lpdrawstLogon->hwndItem == cells[i][j].btn) && !cells[i][j].isEmpty)
             {
-                HDC memDC = CreateCompatibleDC(lpdrawstLogon->hDC);
-                RECT rc = lpdrawstLogon->rcItem;
-
-                HBITMAP bmp = CreateCompatibleBitmap(lpdrawstLogon->hDC, rc.right - rc.left,rc.bottom - rc.top);
-                auto oldBmp = (HBITMAP) SelectObject(memDC, bmp);
-
-                Gdiplus::Graphics(memDC).DrawImage(cells[i][j].bitmap, Gdiplus::Rect(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top));
-
-                BitBlt(lpdrawstLogon->hDC, 0, 0, rc.right - rc.left, rc.bottom - rc.top, memDC, 0, 0, SRCCOPY);
-
-                SelectObject(memDC, oldBmp);
-                DeleteObject(bmp);
-                DeleteDC(memDC);
+                DrawBitmap(lpdrawstLogon->hDC, lpdrawstLogon->rcItem, cells[i][j].bitmap);
             }
         }
     }
